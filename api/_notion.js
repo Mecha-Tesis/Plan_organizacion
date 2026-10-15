@@ -119,14 +119,14 @@ export async function leerEstado() {
   const estaciones = {};
   conTareas().forEach((e, n) => {
     estaciones[e.id] = {
-      tareas: porEstacion[n].map(tarea).filter((t) => !oculta(t.titulo)).sort(porEstado),
+      tareas: porEstacion[n].map(tarea).filter((t) => !oculta(t.titulo) && t.estado !== 'Descartada').sort(porEstado),
       inventario: items.filter((i) => i.estaciones.includes(e.inventario)),
     };
   });
   return { leido: new Date().toISOString(), estaciones };
 }
 
-// J20: la web solo pasa una tarea entre Por hacer y Hecha. Bloqueada se cambia en Notion.
+// J20: la web solo pasa una tarea entre Por hacer y Hecha. Bloqueada y Descartada se cambian en Notion.
 export async function tildar(id, hecha) {
   if (esDemo()) return demoTildar(id, hecha);
   const pagina = await pedir(`/pages/${id}`);
@@ -134,7 +134,7 @@ export async function tildar(id, hecha) {
   const valida = conTareas().some((e) => padre === sinGuiones(e.notion.fuente) || padre === sinGuiones(e.notion.base));
   if (!valida || pagina.archived || pagina.in_trash) throw new ErrorNotion(403, 'Esa tarea no es de ninguna estación');
   const actual = opcion(pagina.properties.Estado) ?? 'Por hacer';
-  if (actual === 'Bloqueada') throw new ErrorNotion(409, 'Está Bloqueada: eso se cambia en Notion');
+  if (actual === 'Bloqueada' || actual === 'Descartada') throw new ErrorNotion(409, `Está ${actual}: eso se cambia en Notion`);
   const nuevo = hecha ? 'Hecha' : 'Por hacer';
   if (actual !== nuevo) {
     await pedir(`/pages/${id}`, { method: 'PATCH', body: { properties: { Estado: { select: { name: nuevo } } } } });

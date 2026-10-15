@@ -94,7 +94,7 @@ button { font: inherit; color: inherit; }
 .zona.falta { --c: var(--falta); }
 .zona.bloqueada { --c: var(--bloqueada); }
 .zona.nada { --c: var(--nada); }
-.zona.lugar { --c: #b59a86; }
+
 .zona.lugar rect { stroke-dasharray: 3 7; }
 .zona.final rect { stroke-dasharray: 10 6; }
 .zona.lista rect, .zona.falta rect, .zona.bloqueada rect { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c) 45%, transparent)); }

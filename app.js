@@ -61,7 +61,7 @@ function dibujarPlanta() {
     const { x, y, w, h } = e.zona;
     const color = colorEstacion(e);
     const tareas = tareasDe(e.id);
-    const sub = e.notion ? (tareas ? `${cuenta(tareas)} hechas` : '') : 'solo el trago';
+    const sub = e.notion && tareas ? `${cuenta(tareas)} hechas` : '';
     const etiqueta = e.notion ? `${e.nombre}: ${COLORES[color]}${tareas ? `, ${cuenta(tareas)} tareas hechas` : ''}` : `${e.nombre}: ${e.que}`;
     p.push(`<g class="zona ${color} ${e.tipo}" data-abrir="${e.id}" tabindex="0" role="button" aria-label="${esc(etiqueta)}">
       <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14"/>

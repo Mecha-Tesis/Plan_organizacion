@@ -85,8 +85,8 @@ export const ESTACIONES = [
     quien: ['A confirmar'],
     ultimo: 'El chin chin con el yo del pasado se descartó: no se iba a ver bien.',
     confirmado: true,
-    notion: null,
-    inventario: null,
+    notion: { base: 'ff5bbcd3-ae55-4303-b41b-9ed9985a1cad', fuente: '340aa030-85a3-4b28-8f06-264c4e0afe5a' },
+    inventario: 'Trago',
   },
   {
     id: 'rocola',

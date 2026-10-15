@@ -66,6 +66,11 @@ const estado = {
     t('App de la tablet'),
     t('Instalar la rocola en el aula', 'Por hacer', 'Instalación'),
   ],
+  barra: [
+    t('Conseguir la mesa de la barra'),
+    t('Vestir la barra'),
+    t('Puesta a punto del bartender', 'Por hacer', 'Instalación'),
+  ],
   general: [
     t('Diseñar los cartelitos de estación', 'Por hacer', 'Producción', 'Arts & crafts'),
     t('Menú: el mapa disfrazado de carta', 'Hecha', 'Producción', 'Arts & crafts'),
@@ -77,7 +82,7 @@ const estado = {
   ],
 };
 
-const ESTACION = { bano: 'Baño', booth: 'Booth', karaoke: 'Karaoke', cuadro: 'Cuadro', tejo: 'Tejo', rocola: 'Rocola', general: 'General' };
+const ESTACION = { barra: 'Trago', bano: 'Baño', booth: 'Booth', karaoke: 'Karaoke', cuadro: 'Cuadro', tejo: 'Tejo', rocola: 'Rocola', general: 'General' };
 
 export function demoEstado() {
   const estaciones = {};
