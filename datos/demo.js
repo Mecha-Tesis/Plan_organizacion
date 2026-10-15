@@ -4,7 +4,7 @@
 
 let n = 0;
 const id = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
-const t = (titulo, estado = 'Por hacer', fase = 'Producción', parte = null) => ({ id: id(), titulo, estado, fase, mundo: null, parte });
+const t = (titulo, estado = 'Por hacer', fase = 'Producción', parte = null, quien = null) => ({ id: id(), titulo, estado, fase, mundo: null, parte, quien });
 const i = (item, estado, estaciones, cantidad = 1, notas = null) => ({ id: id(), item, estado, estaciones, cantidad, notas });
 
 const inventario = [
@@ -31,7 +31,7 @@ const estado = {
     t('Montar el baño en el aula', 'Por hacer', 'Instalación'),
   ],
   booth: [
-    t('Guion del árbol entero', 'Hecha'),
+    t('Guion del árbol entero', 'Hecha', 'Producción', null, 'Ana'),
     t('Generar y editar los videos de las ramas', 'Hecha'),
     t('Construir el box'),
     t('Electrónica: botones, sensor de asiento y lector'),
@@ -40,19 +40,19 @@ const estado = {
   karaoke: [
     t('Armar el escenario de la esquina'),
     t('Soporte de la tablet'),
-    t('App de elección de tema', 'Por hacer'),
+    t('App de elección de tema', 'Por hacer', 'Producción', null, 'Luqui'),
     t('Corte sincronizado: base, letra y luces', 'Bloqueada'),
     t('Pedir los temas a los profesores', 'Hecha'),
     t('Pantalla de progreso mientras está bloqueado'),
   ],
   cuadro: [
-    t('Construir el marco de ventana'),
-    t('Producir los videos del equipo'),
+    t('Construir el marco de ventana', 'Por hacer', 'Producción', null, 'Gala'),
+    t('Producir los videos del equipo', 'Por hacer', 'Producción', null, 'Martín'),
     t('Decidir: clicker o gesto'),
     t('Montar el cuadro en el aula', 'Por hacer', 'Instalación'),
   ],
   tejo: [
-    t('Campo de partículas y fuerza de la mano', 'Hecha'),
+    t('Campo de partículas y fuerza de la mano', 'Hecha', 'Producción', null, 'Ana'),
     t('Calibrar la mano'),
     t('Resolver cómo va la cámara'),
     t('Decidir cómo se gana el tejo'),
@@ -63,7 +63,7 @@ const estado = {
     t('Vestirla con tela negra'),
     t('Stickers'),
     t('Tira LED: chispa y latido'),
-    t('App de la tablet'),
+    t('App de la tablet', 'Por hacer', 'Producción', null, 'Luqui'),
     t('Instalar la rocola en el aula', 'Por hacer', 'Instalación'),
   ],
   barra: [
@@ -78,7 +78,7 @@ const estado = {
     t('Instalar el lector RFID — Tejo', 'Por hacer', 'Instalación', 'RFID'),
     t('Instalar el lector RFID — Cuadro', 'Por hacer', 'Instalación', 'RFID'),
     t('Telas oscuras en las paredes', 'Bloqueada', 'Instalación', 'Puesta en escena'),
-    t('Murmullo de bar en loop', 'Por hacer', 'Producción', 'Sonido ambiente'),
+    t('Murmullo de bar en loop', 'Por hacer', 'Producción', 'Sonido ambiente', 'Pablo'),
   ],
 };
 
@@ -98,4 +98,11 @@ export function demoTildar(tareaId, hecha) {
   if (tarea.estado === 'Bloqueada') throw Object.assign(new Error('Está Bloqueada: eso se cambia en Notion'), { status: 409 });
   tarea.estado = hecha ? 'Hecha' : 'Por hacer';
   return { id: tareaId, estado: tarea.estado };
+}
+
+export function demoAsignar(tareaId, quien) {
+  const tarea = Object.values(estado).flat().find((x) => x.id === tareaId);
+  if (!tarea) throw Object.assign(new Error('Esa tarea no es de ninguna estación'), { status: 403 });
+  tarea.quien = quien;
+  return { id: tareaId, quien };
 }

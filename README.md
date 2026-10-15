@@ -16,6 +16,7 @@ Sin dependencias ni paso de compilación: HTML, CSS y JavaScript.
 | `lib/mecha.js` | Cómo se calcula el color de cada estación y el texto de `/mecha.md`. |
 | `api/estado.js` | Lee de Notion las tareas de cada estación y el Inventario técnico. |
 | `api/tildar.js` | Cambia el `Estado` de una tarea entre `Por hacer` y `Hecha`. Pide la clave del equipo. |
+| `api/asignar.js` | Cambia quién se encarga de una tarea (`Quién`). Pide la clave del equipo. |
 | `api/mecha.js` | `/mecha.md` y `/mecha.json`: todo junto, para pasarle a una IA. |
 | `api/_notion.js` | Lo que habla con Notion. |
 | `datos/demo.js` | Datos de prueba, solo para mirarla sin Notion. |
@@ -23,9 +24,16 @@ Sin dependencias ni paso de compilación: HTML, CSS y JavaScript.
 
 **Colores:** verde todo hecho · amarillo falta algo · rojo algo `Bloqueada` · gris sin datos.
 
-**Qué toca de Notion:** solo el `Estado` de las tareas de las bases de estación (Tejo, Booth, Baño,
-Cuadro, Rocola, Karaoke, General), y solo entre `Por hacer` y `Hecha`. No crea, no borra, no toca
-el Inventario. Las filas que empiezan con 🗑️ (para borrar) o ⏸️ (en pausa) no se muestran.
+**Qué toca de Notion:** solo dos propiedades de las tareas de las bases de estación (Tejo, Booth,
+Baño, Cuadro, Rocola, Karaoke, Trago, General):
+
+- `Estado`, y solo entre `Por hacer` y `Hecha`.
+- `Quién`, el menú que está al lado de cada tarea: quién se encarga. Las opciones son las de
+  `EQUIPO` en `datos/estaciones.js`. Para sumar a alguien, agregalo ahí **y** como opción de
+  `Quién` en las ocho bases.
+
+No crea, no borra, no toca el Inventario. Las filas que empiezan con 🗑️ (para borrar) o ⏸️ (en
+pausa) no se muestran.
 
 ## Ponerla en línea
 

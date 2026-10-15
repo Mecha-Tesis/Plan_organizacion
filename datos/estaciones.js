@@ -9,6 +9,10 @@
 export const MUESTRA = '2026-12-20';
 export const ACTUALIZADO = '2026-10-15';
 
+// Las opciones de la propiedad "Quién" de cada base de tareas en Notion. Si se suma alguien,
+// se agrega acá y como opción en las ocho bases; si no, la web no deja elegirlo.
+export const EQUIPO = ['Ana', 'Martín', 'Pablo', 'Gala', 'Luqui'];
+
 export const ESTACIONES = [
   {
     id: 'bano',

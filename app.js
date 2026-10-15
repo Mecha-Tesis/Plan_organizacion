@@ -1,5 +1,5 @@
 // La página: dibuja la planta, abre la ficha de cada estación y tilda en Notion.
-import { ESTACIONES, GENERAL, LUGARES, ENTRADA } from './datos/estaciones.js';
+import { ESTACIONES, GENERAL, LUGARES, ENTRADA, EQUIPO } from './datos/estaciones.js';
 import { COLORES, colorDe, falta, hechas, necesita, diasHasta, horaArgentina, agruparPorParte } from './lib/mecha.js';
 
 const TOPE = 5; // J9: ninguna lista pasa de cinco sin un "ver más"
@@ -12,10 +12,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let vivo = null; // lo último que respondió /api/estado
 let error = null;
 let abierta = null; // id de la estación con la ficha abierta
-let pidiendoClave = null; // { id, hecha, donde } mientras se espera la clave
+let pidiendoClave = null; // { donde, seguir } mientras se espera la clave
 let errorClave = '';
 const pendientes = new Map(); // tildes mandados que Notion todavía no devolvió
+const pendientesQuien = new Map(); // lo mismo para "Quién"
 const enviando = new Set();
+let redibujarAlSoltar = false; // no se redibuja con un menú de "Quién" abierto
 const expandidos = new Set();
 
 // J24: la clave queda en este navegador.
@@ -27,9 +29,11 @@ const borrarClave = () => { try { localStorage.removeItem(CLAVE); } catch {} };
 function tareasDe(id) {
   const lista = vivo?.estaciones?.[id]?.tareas;
   if (!lista) return null;
+  const vigente = (m, id) => { const p = m.get(id); return p && p.hasta > Date.now() ? p : null; };
   return lista.map((t) => {
-    const p = pendientes.get(t.id);
-    return p && p.hasta > Date.now() ? { ...t, estado: p.estado } : t;
+    const p = vigente(pendientes, t.id);
+    const q = vigente(pendientesQuien, t.id);
+    return { ...t, ...(p && { estado: p.estado }), ...(q && { quien: q.quien }) };
   });
 }
 const inventarioDe = (id) => vivo?.estaciones?.[id]?.inventario ?? null;
@@ -100,10 +104,22 @@ function listaTareas(lista, clave, donde) {
       <span class="texto">${esc(t.titulo)}</span></label>
       ${bloq ? '<span class="etiqueta bloq">Bloqueada</span>' : ''}
       ${t.fase === 'Instalación' && !bloq ? '<span class="etiqueta inst">en el aula</span>' : ''}
+      ${elegirQuien(t)}
     </li>`;
   }).join('');
   const resto = lista.length - visibles.length;
   return `<ul class="tareas">${filas}</ul>${resto > 0 ? `<button class="ver-mas" data-expandir="${clave}">Ver ${resto} más</button>` : ''}`;
+}
+
+// J32: al lado de cada tarea se elige quién se encarga. Se guarda en la propiedad "Quién" de Notion.
+function elegirQuien(t) {
+  const nombres = t.quien && !EQUIPO.includes(t.quien) ? [...EQUIPO, t.quien] : EQUIPO;
+  const apagado = Boolean(error) || enviando.has(`${t.id}:quien`);
+  return `<select class="quien${t.quien ? '' : ' nadie'}" data-quien-de="${t.id}" ${apagado ? 'disabled' : ''}
+      aria-label="Quién se encarga de ${esc(t.titulo)}">
+    <option value=""${t.quien ? '' : ' selected'}>¿Quién?</option>
+    ${nombres.map((n) => `<option${n === t.quien ? ' selected' : ''}>${esc(n)}</option>`).join('')}
+  </select>`;
 }
 
 function listaItems(lista, clave) {
@@ -176,10 +192,11 @@ function dibujarFicha() {
 
   const ficha = $('#ficha');
   const scroll = ficha.scrollTop;
-  const foco = document.activeElement?.dataset?.tarea;
+  const { tarea: foco, quienDe } = document.activeElement?.dataset ?? {};
   $('#ficha-cuerpo').innerHTML = partes.join('');
   ficha.scrollTop = scroll;
   if (foco) ficha.querySelector(`[data-tarea="${foco}"]`)?.focus();
+  if (quienDe) ficha.querySelector(`[data-quien-de="${quienDe}"]`)?.focus();
 }
 
 function abrir(id) {
@@ -226,14 +243,19 @@ async function cargar() {
     vivo = d;
     error = null;
     // Lo que Notion ya devuelve con el estado nuevo deja de estar pendiente.
-    for (const [id, p] of pendientes) {
-      const t = Object.values(vivo.estaciones).flatMap((x) => x.tareas).find((x) => x.id === id);
-      if (!t || t.estado === p.estado || p.hasta < Date.now()) pendientes.delete(id);
+    const todas = Object.values(vivo.estaciones).flatMap((x) => x.tareas);
+    for (const [mapa, campo] of [[pendientes, 'estado'], [pendientesQuien, 'quien']]) {
+      for (const [id, p] of mapa) {
+        const t = todas.find((x) => x.id === id);
+        if (!t || t[campo] === p[campo] || p.hasta < Date.now()) mapa.delete(id);
+      }
     }
   } catch (e) {
     error = e.message === 'Failed to fetch' ? 'sin conexión' : e.message;
   }
-  dibujar();
+  // Redibujar cierra el menú que alguien tiene abierto: se espera a que lo suelte.
+  if (document.activeElement?.matches?.('select[data-quien-de]')) redibujarAlSoltar = true;
+  else dibujar();
 }
 
 /* ---------- Tildar ---------- */
@@ -248,44 +270,58 @@ function tostada(texto, esError = false) {
   tiempoTostada = setTimeout(() => { try { t.hidePopover(); } catch {} }, 3200);
 }
 
-async function tildar(id, hecha, donde) {
+// Manda un cambio a Notion. Mientras viaja, la página ya lo muestra; si falla, vuelve atrás.
+async function guardar(cambio) {
+  const { ruta, cuerpo, mapa, valor, marca, donde, listo } = cambio;
+  const seguir = () => guardar(cambio);
   const clave = leerClave();
   if (!clave) {
-    pidiendoClave = { id, hecha, donde };
+    pidiendoClave = { donde, seguir };
     dibujar();
     document.querySelector('[data-clave] input')?.focus();
     return;
   }
-  pendientes.set(id, { estado: hecha ? 'Hecha' : 'Por hacer', hasta: Date.now() + 90_000 });
-  enviando.add(id);
+  const id = cuerpo.id;
+  mapa.set(id, { ...valor, hasta: Date.now() + 90_000 });
+  enviando.add(marca);
   dibujar();
   try {
-    const r = await fetch('/api/tildar', {
+    const r = await fetch(ruta, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Mecha-Clave': clave },
-      body: JSON.stringify({ id, hecha }),
+      body: JSON.stringify(cuerpo),
     });
     const d = await r.json().catch(() => ({}));
     if (r.status === 401 && d.codigo === 'clave') {
-      pendientes.delete(id);
+      mapa.delete(id);
       borrarClave();
       errorClave = 'La clave no es esa.';
-      pidiendoClave = { id, hecha, donde };
+      pidiendoClave = { donde, seguir };
     } else if (!r.ok) {
-      pendientes.delete(id);
+      mapa.delete(id);
       tostada(d.error || 'No se pudo guardar', true);
     } else {
-      tostada(hecha ? 'Tildada. En Notion ya figura Hecha.' : 'Destildada. Vuelve a Por hacer.');
+      tostada(listo);
     }
   } catch {
-    pendientes.delete(id);
+    mapa.delete(id);
     tostada('Sin conexión: no se guardó.', true);
   } finally {
-    enviando.delete(id);
+    enviando.delete(marca);
     dibujar();
     if (pidiendoClave) document.querySelector('[data-clave] input')?.focus();
   }
 }
+
+const tildar = (id, hecha, donde) => guardar({
+  ruta: '/api/tildar', cuerpo: { id, hecha }, mapa: pendientes, valor: { estado: hecha ? 'Hecha' : 'Por hacer' },
+  marca: id, donde, listo: hecha ? 'Tildada. En Notion ya figura Hecha.' : 'Destildada. Vuelve a Por hacer.',
+});
+
+const asignar = (id, quien, donde) => guardar({
+  ruta: '/api/asignar', cuerpo: { id, quien }, mapa: pendientesQuien, valor: { quien },
+  marca: `${id}:quien`, donde, listo: quien ? `Se encarga ${quien}.` : 'Quedó sin nadie.',
+});
 
 /* ---------- Eventos ---------- */
 
@@ -309,7 +345,19 @@ document.addEventListener('keydown', (ev) => {
 
 document.addEventListener('change', (ev) => {
   const caja = ev.target.closest('[data-tarea]');
-  if (caja) tildar(caja.dataset.tarea, caja.checked, caja.dataset.donde);
+  if (caja) return tildar(caja.dataset.tarea, caja.checked, caja.dataset.donde);
+  const menu = ev.target.closest('[data-quien-de]');
+  if (menu) {
+    redibujarAlSoltar = false;
+    asignar(menu.dataset.quienDe, menu.value || null, menu.closest('#ficha') ? abierta : 'general');
+  }
+});
+
+document.addEventListener('focusout', (ev) => {
+  if (redibujarAlSoltar && ev.target.matches?.('select[data-quien-de]')) {
+    redibujarAlSoltar = false;
+    setTimeout(dibujar);
+  }
 });
 
 document.addEventListener('toggle', (ev) => {
@@ -325,9 +373,9 @@ document.addEventListener('submit', (ev) => {
   if (!valor) return;
   guardarClave(valor);
   errorClave = '';
-  const { id, hecha, donde } = pidiendoClave;
+  const { seguir } = pidiendoClave;
   pidiendoClave = null;
-  tildar(id, hecha, donde);
+  seguir();
 });
 
 const ficha = $('#ficha');

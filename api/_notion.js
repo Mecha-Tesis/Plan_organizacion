@@ -1,7 +1,7 @@
 // Todo lo que habla con Notion. El guion bajo hace que Vercel no lo publique como ruta.
 import { timingSafeEqual, createHash } from 'node:crypto';
-import { ESTACIONES, GENERAL, INVENTARIO } from '../datos/estaciones.js';
-import { demoEstado, demoTildar } from '../datos/demo.js';
+import { ESTACIONES, GENERAL, INVENTARIO, EQUIPO } from '../datos/estaciones.js';
+import { demoEstado, demoTildar, demoAsignar } from '../datos/demo.js';
 
 const API = 'https://api.notion.com/v1';
 const VERSION = '2025-09-03';
@@ -89,6 +89,7 @@ function tarea(p) {
     fase: opcion(pr.Fase),
     mundo: opcion(pr.Mundo),
     parte: opcion(pr.Parte),
+    quien: opcion(pr['Quién']),
   };
 }
 
@@ -126,13 +127,19 @@ export async function leerEstado() {
   return { leido: new Date().toISOString(), estaciones };
 }
 
-// J20: la web solo pasa una tarea entre Por hacer y Hecha. Bloqueada y Descartada se cambian en Notion.
-export async function tildar(id, hecha) {
-  if (esDemo()) return demoTildar(id, hecha);
+// La web solo escribe en tareas de las bases de estación: nunca en otra página del Notion de Ana.
+async function tareaDeEstacion(id) {
   const pagina = await pedir(`/pages/${id}`);
   const padre = sinGuiones(pagina.parent?.data_source_id ?? pagina.parent?.database_id);
   const valida = conTareas().some((e) => padre === sinGuiones(e.notion.fuente) || padre === sinGuiones(e.notion.base));
   if (!valida || pagina.archived || pagina.in_trash) throw new ErrorNotion(403, 'Esa tarea no es de ninguna estación');
+  return pagina;
+}
+
+// J20: la web solo pasa una tarea entre Por hacer y Hecha. Bloqueada y Descartada se cambian en Notion.
+export async function tildar(id, hecha) {
+  if (esDemo()) return demoTildar(id, hecha);
+  const pagina = await tareaDeEstacion(id);
   const actual = opcion(pagina.properties.Estado) ?? 'Por hacer';
   if (actual === 'Bloqueada' || actual === 'Descartada') throw new ErrorNotion(409, `Está ${actual}: eso se cambia en Notion`);
   const nuevo = hecha ? 'Hecha' : 'Por hacer';
@@ -140,6 +147,16 @@ export async function tildar(id, hecha) {
     await pedir(`/pages/${id}`, { method: 'PATCH', body: { properties: { Estado: { select: { name: nuevo } } } } });
   }
   return { id, estado: nuevo };
+}
+
+// J32: quién se encarga de una tarea. null la deja sin nadie.
+export async function asignar(id, quien) {
+  if (quien !== null && !EQUIPO.includes(quien)) throw new ErrorNotion(400, `${quien} no está en el equipo`);
+  if (esDemo()) return demoAsignar(id, quien);
+  const pagina = await tareaDeEstacion(id);
+  if (!pagina.properties['Quién']) throw new ErrorNotion(409, 'Esa base no tiene la propiedad "Quién" en Notion');
+  await pedir(`/pages/${id}`, { method: 'PATCH', body: { properties: { 'Quién': { select: quien ? { name: quien } : null } } } });
+  return { id, quien };
 }
 
 export function claveCorrecta(dada) {
