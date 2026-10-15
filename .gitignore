@@ -1,0 +1,11 @@
+# Las claves. Nunca al repo.
+.env
+.env.*
+!.env.example
+
+.vercel/
+node_modules/
+
+Thumbs.db
+desktop.ini
+.DS_Store

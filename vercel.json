@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    { "source": "/mecha.md", "destination": "/api/mecha?formato=md" },
+    { "source": "/mecha.json", "destination": "/api/mecha?formato=json" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    }
+  ]
+}

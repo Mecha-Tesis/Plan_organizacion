@@ -1,0 +1,13 @@
+{
+  "name": "mecha-equipo",
+  "private": true,
+  "description": "La web del equipo de MECHA: la planta del aula, el estado de cada estación y los tildes, leídos de Notion.",
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "node dev.mjs",
+    "demo": "node dev.mjs --demo"
+  }
+}
